@@ -822,7 +822,7 @@ class Dio {
     var data = options.data;
     List<int> bytes;
     Stream<List<int>> stream;
-    if (data != null && ["POST", "PUT", "PATCH"].contains(options.method)) {
+    if (data != null && ["POST", "PUT", "PATCH", "DELETE"].contains(options.method)) {
       // Handle the FormData
       int length;
       if (data is Stream) {
