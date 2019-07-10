@@ -1,21 +1,25 @@
-import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
+void getHttp() async {
+  try {
+    Response response = await Dio().get("http://www.google.com");
+    print(response);
+  } catch (e) {
+    print(e);
+  }
+}
 
-main() async {
-  var formData = new FormData.from({
-    "param1": "-1",
-    "param2": "-1",
-    "param3": "-1",
-    "param4": "-1",
-    "param5": null,
-    "param8": {"a": "b", "b": "c"},
-    "music": new UploadFileInfo(new File("./example/bee.mp4"), "be.mp4"),
-  });
+main() async{
+//  await getHttp();
+//  Stream<Uint8List> t =Stream.empty();
+//  Stream<List<int>> v=Stream.empty();
+//  print(v is Stream<Uint8List>);
+//  print (t is Stream<List<int>> );
+//  print(t is Stream<Uint8List>);
 
-  var t = await formData.asBytesAsync();
-  print("formStreamSize = ${t.length}");
-  print("formData.length = ${formData.length}");
-  print(formData.length == t.length);
-  //print(formData);
+  FormData formData = FormData();
+  formData.add("vehicles", List.from(["one", "two"]));
+  Response response = await Dio().post("http://www.google.com",data: formData);
 
 }

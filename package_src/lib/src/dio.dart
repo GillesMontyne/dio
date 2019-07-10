@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'cancel_token.dart';
 import 'dio_error.dart';
 import 'form_data.dart';
@@ -449,8 +450,8 @@ class Dio {
     Future future = completer.future;
     int received = 0;
 
-    // Stream<List<int>>
-    Stream<List<int>> stream = response.data.stream;
+    // Stream<Uint8List>
+    Stream<Uint8List> stream = response.data.stream;
     bool compressed = false;
     int total = 0;
     String contentEncoding =
@@ -489,6 +490,13 @@ class Dio {
           raf = _raf;
           if (cancelToken == null || !cancelToken.isCancelled) {
             subscription.resume();
+          }
+        }).catchError((derr) async {
+          try {
+            await subscription.cancel();
+
+          } finally {
+            completer.completeError(_assureDioError(derr));
           }
         });
       },
@@ -609,7 +617,7 @@ class Dio {
       queryParameters: queryParameters,
       cancelToken: cancelToken,
       options: options,
-      onSendProgress: onSendProgress ?? onSendProgress,
+      onSendProgress: onSendProgress,
       onReceiveProgress: onReceiveProgress,
     );
   }
@@ -632,7 +640,7 @@ class Dio {
       data: data,
       cancelToken: cancelToken,
       options: options,
-      onSendProgress: onSendProgress ?? onSendProgress,
+      onSendProgress: onSendProgress ,
       onReceiveProgress: onReceiveProgress,
     );
   }
@@ -818,7 +826,7 @@ class Dio {
     }
   }
 
-  Future<Stream<List<int>>> _transformData(RequestOptions options) async {
+  Future<Stream<Uint8List>> _transformData(RequestOptions options) async {
     var data = options.data;
     List<int> bytes;
     Stream<List<int>> stream;
@@ -826,8 +834,8 @@ class Dio {
       // Handle the FormData
       int length;
       if (data is Stream) {
-        assert(data is Stream<List<int>>,
-            "Stream type must be `Stream<List<int>>`, but ${data.runtimeType} is found.");
+        assert(data is Stream<List>,
+            "Stream type must be `Stream<List>`, but ${data.runtimeType} is found.");
         stream = data;
         options.headers.keys.any((String key) {
           if (key.toLowerCase() == HttpHeaders.contentLengthHeader) {
@@ -841,7 +849,7 @@ class Dio {
           options.headers[HttpHeaders.contentTypeHeader] =
           'multipart/form-data; boundary=${data.boundary.substring(2)}';
         }
-        stream = data.stream;
+        stream=data.stream;
         length = data.length;
       } else {
         // Call request transformer.
@@ -855,7 +863,7 @@ class Dio {
         // support data sending progress
         length = bytes.length;
 
-        var group = new List<List<int>>();
+        var group = List<List<int>>();
         const size = 1024;
         int groupCount = (bytes.length / size).ceil();
         for (int i = 0; i < groupCount; ++i) {
@@ -864,21 +872,21 @@ class Dio {
         }
         stream = Stream.fromIterable(group);
       }
+
       options.headers[HttpHeaders.contentTypeHeader] ??=
           options.contentType.toString();
       if (length != null) {
         options.headers[HttpHeaders.contentLengthHeader] = length;
       }
       int complete = 0;
-      Stream<List<int>> byteStream =
-          stream.transform(StreamTransformer.fromHandlers(
+      Stream<Uint8List>  byteStream =  stream.transform(StreamTransformer.fromHandlers(
         handleData: (data, sink) {
           if (options.cancelToken != null && options.cancelToken.isCancelled) {
             sink
               ..addError(options.cancelToken.cancelError)
               ..close();
           } else {
-            sink.add(data);
+            sink.add(Uint8List.fromList(data));
             if (length != null) {
               complete += data.length;
               if (options.onSendProgress != null) {

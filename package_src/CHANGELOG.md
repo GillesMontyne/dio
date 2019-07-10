@@ -1,3 +1,24 @@
+# 2.1.13
+
+- fix #369
+
+# 2.1.12
+
+- fix #367 #365
+
+# 2.1.10
+
+- fix #360
+
+# 2.1.9
+
+- support flutter version>=1.8 (fix #357)
+
+
+# 2.1.8
+
+- fix #354 #312
+- Allow "delete" method with request body(#223)
 
 # 2.1.7
 

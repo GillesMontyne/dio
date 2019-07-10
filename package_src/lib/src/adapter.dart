@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
+import 'dart:typed_data';
 import 'options.dart';
 import 'dio_error.dart';
 
@@ -59,7 +60,7 @@ class ResponseBody {
   });
 
   /// The response stream
-  Stream<List<int>> stream;
+  Stream<Uint8List> stream;
 
   /// the response headers
   HttpHeaders headers;
@@ -85,7 +86,8 @@ class ResponseBody {
     this.headers,
     this.statusMessage,
     this.redirects,
-  }) : stream = Stream.fromIterable(utf8.encode(text).map((e) => [e]).toList());
+  }) : stream = Stream.fromIterable(
+            utf8.encode(text).map((e) => Uint8List.fromList([e])).toList());
 
   ResponseBody.fromBytes(
     List<int> bytes,
@@ -93,25 +95,29 @@ class ResponseBody {
     this.headers,
     this.statusMessage,
     this.redirects,
-  }) : stream = Stream.fromIterable(bytes.map((e) => [e]).toList());
+  }) : stream = Stream.fromIterable(
+            bytes.map((e) => Uint8List.fromList([e])).toList());
 }
 
 /// The default HttpClientAdapter for Dio is [DefaultHttpClientAdapter].
 class DefaultHttpClientAdapter extends HttpClientAdapter {
-  HttpClient _httpClient;
+  Uint8List E;
 
   Future<ResponseBody> fetch(
     RequestOptions options,
     Stream<List<int>> requestStream,
     Future cancelFuture,
   ) async {
-    _configHttpClient();
+    var _httpClient = _configHttpClient(cancelFuture);
+
     Future requestFuture;
     if (options.connectTimeout > 0) {
       // Because there is a bug in [httpClient.connectionTimeout] now, we replace it
       // with `Future.timeout()` when it comes.
       // Bug issue: https://github.com/dart-lang/sdk/issues/34980.
       //_httpClient.connectionTimeout= Duration(milliseconds: options.connectTimeout);
+//      _httpClient.connectionTimeout =
+//          Duration(milliseconds: options.connectTimeout);
       requestFuture = _httpClient
           .openUrl(options.method, options.uri)
           .timeout(Duration(milliseconds: options.connectTimeout));
@@ -144,8 +150,7 @@ class DefaultHttpClientAdapter extends HttpClientAdapter {
     if (options.receiveTimeout > 0) {
       future = future.timeout(Duration(milliseconds: options.receiveTimeout));
     }
-    HttpClientResponse responseStream;
-
+    HttpClientResponse  responseStream;
     try {
       responseStream = await future;
     } on TimeoutException {
@@ -155,8 +160,16 @@ class DefaultHttpClientAdapter extends HttpClientAdapter {
         type: DioErrorType.RECEIVE_TIMEOUT,
       );
     }
+
+    // https://github.com/dart-lang/co19/issues/383
+    Stream<Uint8List> stream= responseStream.transform(StreamTransformer.fromHandlers(
+      handleData: (data, sink) {
+          sink.add(Uint8List.fromList(data));
+      },
+    ));
+
     return ResponseBody(
-      responseStream,
+      stream,
       responseStream.statusCode,
       headers: responseStream.headers,
       redirects: responseStream.redirects,
@@ -164,17 +177,40 @@ class DefaultHttpClientAdapter extends HttpClientAdapter {
     );
   }
 
-  void _configHttpClient() {
-    if (_httpClient == null) _httpClient = new HttpClient();
-    _httpClient.idleTimeout = Duration(seconds: 3);
-    if (onHttpClientCreate != null) {
-      //user can return a new HttpClient instance
-      _httpClient = onHttpClientCreate(_httpClient) ?? _httpClient;
+  HttpClient _configHttpClient(Future cancelFuture) {
+    if (cancelFuture != null) {
+      var _httpClient = HttpClient();
+      if (onHttpClientCreate != null) {
+        //user can return a new HttpClient instance
+        _httpClient = onHttpClientCreate(_httpClient) ?? _httpClient;
+      }
+      _httpClient.idleTimeout = Duration(seconds: 0);
+      cancelFuture.whenComplete(() {
+        Future.delayed(Duration(seconds: 0)).then((e) {
+          try {
+            _httpClient.close(force: true);
+          } catch (e) {
+            //...
+          }
+        });
+      });
+      return _httpClient;
+    } else if (_defaultHttpClient == null) {
+      _defaultHttpClient = HttpClient();
+      _defaultHttpClient.idleTimeout = Duration(seconds: 3);
+      if (onHttpClientCreate != null) {
+        //user can return a new HttpClient instance
+        _defaultHttpClient =
+            onHttpClientCreate(_defaultHttpClient) ?? _defaultHttpClient;
+      }
     }
+    return _defaultHttpClient;
   }
 
   /// [Dio] will create new HttpClient when it is needed.
   /// If [onHttpClientCreate] is provided, [Dio] will call
   /// it when a new HttpClient created.
   OnHttpClientCreate onHttpClientCreate;
+
+  HttpClient _defaultHttpClient;
 }

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'dio_error.dart';
 import 'options.dart';
 import 'adapter.dart';
@@ -99,9 +100,9 @@ class DefaultTransformer extends Transformer {
           response.headers.value(HttpHeaders.contentLengthHeader) ?? "-1");
     }
     Completer completer = new Completer();
-    Stream<List<int>> stream = response.stream.transform<List<int>>(
-        StreamTransformer.fromHandlers(handleData: (data, sink) {
-      sink.add(data);
+    Stream stream = response.stream
+        .transform(StreamTransformer.fromHandlers(handleData: (data, sink) {
+      sink.add(Uint8List.fromList(data));
       if (showDownloadProgress) {
         received += data.length;
         options.onReceiveProgress(received, length);
@@ -137,7 +138,8 @@ class DefaultTransformer extends Transformer {
     if (options.responseType == ResponseType.bytes) return buffer;
     String responseBody;
     if (options.responseDecoder != null) {
-      responseBody = options.responseDecoder(buffer, options, response..stream=null);
+      responseBody =
+          options.responseDecoder(buffer, options, response..stream = null);
     } else {
       responseBody = utf8.decode(buffer, allowMalformed: true);
     }

@@ -110,8 +110,10 @@ void main() {
       FormData formData = FormData.from({
         "name": "wendux",
         "age": 25,
-        "other": {"a": 1, "b": 2}
+        "other": {"a": 1, "b": 2},
+        "test":["xx",2]
       });
+
       formData.remove("name");
       formData["xx"] = 9;
       formData.add(
@@ -120,6 +122,7 @@ void main() {
       );
       var t = await formData.asBytesAsync();
       expect(formData.length, t.length);
+      expect(formData.length, formData.asBytes().length);
       await dio.post("/test", data: formData);
       formData.clear();
       expect(formData.length, 0);
@@ -176,6 +179,7 @@ void main() {
       final url = 'http://download.dcloud.net.cn/HBuilder.9.0.2.macosx_64.dmg';
       final savePath = './example/HBuilder.9.0.2.macosx_64.dmg';
       await dio.download(url, savePath, cancelToken: token).catchError((e) {
+        print(e);
         expect(CancelToken.isCancel(e), true);
         if (CancelToken.isCancel(e)) {
           expect(e.type, DioErrorType.CANCEL);
