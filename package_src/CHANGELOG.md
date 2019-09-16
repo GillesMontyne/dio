@@ -1,3 +1,12 @@
+
+# 2.1.16
+
+Add `deleteOnError` parameter to `downloadUri`
+
+# 2.1.14
+
+- fix #402 #385 #422
+
 # 2.1.13
 
 - fix #369
