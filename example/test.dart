@@ -1,16 +1,21 @@
-
 import 'package:dio/dio.dart';
+
 void getHttp() async {
+  var dio = Dio();
+  dio.interceptors.add(LogInterceptor(responseBody: true));
+  dio.options.baseUrl = "http://httpbin.org";
   try {
-    var dio=Dio();
-    dio.interceptors.add(LogInterceptor());
-    Response response = await dio.get("http://httpbin.org/");
-    print(response);
+    await Future.wait([
+      dio.get("/get", queryParameters: {"id": 1}),
+      dio.get("/get", queryParameters: {"id": 2})
+    ]);
   } catch (e) {
     print(e);
   }
 }
 
-main() async{
- await getHttp();
+main() async {
+  //await getHttp();
+  var t=await MultipartFile.fromBytes([5]);
+  print(t);
 }

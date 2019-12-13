@@ -4,18 +4,21 @@ Language: [English](README.md) | [中文简体](README-ZH.md)
 
 [![build status](https://img.shields.io/travis/flutterchina/dio/vm.svg?style=flat-square)](https://travis-ci.org/flutterchina/dio)
 [![Pub](https://img.shields.io/pub/v/dio.svg?style=flat-square)](https://pub.dartlang.org/packages/dio)
-[![support](https://img.shields.io/badge/platform-flutter%7Cdart%20vm-ff69b4.svg?style=flat-square)](https://github.com/flutterchina/dio)
+[![support](https://img.shields.io/badge/platform-flutter%7Cflutter%20web%7Cdart%20vm-ff69b4.svg?style=flat-square)](https://github.com/flutterchina/dio)
 
 A powerful Http client for Dart, which supports Interceptors, Global configuration, FormData, Request Cancellation, File downloading, Timeout etc. 
+
+## Get started
 
 ### Add dependency
 
 ```yaml
 dependencies:
-  dio: 2.1.x  #latest version
+  dio: 3.x #latest version
 ```
-If you are using 1.x , this doc can help you upgrade to 2.x.  [Change log](https://github.com/flutterchina/dio/blob/master/CHANGELOG.md)
-## Super simple to use
+> In order to support Flutter Web, v3.x was heavily refactored, so it was not compatible with version 3.x See [here](https://github.com/flutterchina/dio/blob/master/dio/CHANGELOG.md) for a detailed list of updates.
+
+### Super simple to use
 
 ```dart
 import 'package:dio/dio.dart';
@@ -28,6 +31,24 @@ void getHttp() async {
   }
 }
 ```
+
+## awesome-dio
+
+🎉 A curated list of awesome things related to dio.
+
+### Plugins
+
+| Plugins                                                      | Status                                                       | Description                                                  |
+| ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| [dio_cookie_manager](https://github.com/flutterchina/dio/tree/master/plugins/cookie_manager) | [![Pub](https://img.shields.io/pub/v/dio_http2_adapter.svg?style=flat-square)](https://pub.dartlang.org/packages/dio_http2_adapter) | A cookie manager for Dio                                     |
+| [dio_http2_adapter](https://github.com/flutterchina/dio/tree/master/plugins/http2_adapter) | [![Pub](https://img.shields.io/pub/v/dio_cookie_manager.svg?style=flat-square)](https://pub.dartlang.org/packages/dio_cookie_manager) | A Dio HttpClientAdapter which support Http/2.0               |
+| [dio_flutter_transformer](https://github.com/flutterchina/dio_flutter_transformer) | [![Pub](https://img.shields.io/pub/v/dio_flutter_transformer.svg?style=flat-square)](https://pub.dartlang.org/packages/dio_flutter_transformer) | A Dio transformer especially for flutter, by which the json decoding will be in background with `compute` function. |
+| [dio_http_cache](https://github.com/hurshi/dio-http-cache)   | [![Pub](https://img.shields.io/pub/v/dio_http_cache.svg?style=flat-square)](https://pub.dartlang.org/packages/dio_http_cache) | A cache library for Dio, like [Rxcache](https://github.com/VictorAlbertos/RxCache) in Android. dio-http-cache uses [sqflite](https://github.com/tekartik/sqflite) as disk cache, and [LRU](https://github.com/google/quiver-dart) strategy as memory cache. |
+| [retrofit](https://github.com/trevorwang/retrofit.dart/)     | [![Pub](https://img.shields.io/pub/v/retrofit.svg?style=flat-square)](https://pub.dartlang.org/packages/retrofit) | retrofit.dart is an dio client generator using source_gen and inspired by Chopper and Retrofit. |
+
+### Related Projects
+
+Welcome to submit Dio's third-party plugins and related libraries [here](https://github.com/flutterchina/dio/issues/347) .
 
 ## Table of contents
 
@@ -55,13 +76,17 @@ void getHttp() async {
 
 - [Https certificate verification](#https-certificate-verification)
 
+- [HttpClientAdapter](#httpclientadapter )
+
 - [Cancellation](#cancellation)
 
-- [HttpClientAdapter](#httpclientadapter )
+- [Extends Dio class](#extends-dio-class)
+
+- [Http2 support](#http2-support )
 
 - [Features and bugs](#features-and-bugs)
 
-  ​
+  
 
 ## Examples
 
@@ -116,7 +141,7 @@ print(rs.data); // List<int>
 Sending FormData:
 
 ```dart
-FormData formData = new FormData.from({
+FormData formData = new FormData.fromMap({
     "name": "wendux",
     "age": 25,
   });
@@ -126,19 +151,16 @@ response = await dio.post("/info", data: formData);
 Uploading multiple files to server by FormData:
 
 ```dart
-FormData formData = new FormData.from({
+FormData.fromMap({
     "name": "wendux",
     "age": 25,
-    "file1": new UploadFileInfo(new File("./upload.txt"), "upload1.txt"),
-    // upload with bytes (List<int>)
-    "file2": new UploadFileInfo.fromBytes(
-        utf8.encode("hello world"), "word.txt"),
-    // Pass multiple files within an Array
+    "file": await MultipartFile.fromFile("./text.txt",filename: "upload.txt"),
     "files": [
-      new UploadFileInfo(new File("./example/upload.txt"), "upload.txt"),
-      new UploadFileInfo(new File("./example/upload.txt"), "upload.txt")
+      await MultipartFile.fromFile("./text1.txt", filename: "text1.txt"),
+      await MultipartFile.fromFile("./text2.txt", filename: "text2.txt"),
     ]
 });
+response = await dio.post("/info", data: formData);
 ```
 
 Listening the uploading progress:
@@ -162,13 +184,15 @@ await dio.post(
   data: Stream.fromIterable(postData.map((e) => [e])), //create a Stream<List<int>>
   options: Options(
     headers: {
-      HttpHeaders.contentLengthHeader: postData.length, // set content-length
+      Headers.contentLengthHeader: postData.length, // set content-length
     },
   ),
 );
 ```
 
 …you can find all examples code [here](https://github.com/flutterchina/dio/tree/master/example).
+
+
 
 ## Dio APIs
 
@@ -257,11 +281,11 @@ The Options class describes the http request information and configuration. Each
   /// it will be combined and then resolved with the baseUrl.
   String path="";
 
-  /// The request Content-Type. The default value is [ContentType.JSON].
+  /// The request Content-Type. The default value is "application/json; charset=utf-8".
   /// If you want to encode request body with "application/x-www-form-urlencoded",
-  /// you can set `ContentType.parse("application/x-www-form-urlencoded")`, and [Dio]
+  /// you can set [Headers.formUrlEncodedContentType], and [Dio]
   /// will automatically encode the request body.
-  ContentType contentType;
+  String contentType;
 
   /// [responseType] indicates the type of data that the server will respond with
   /// options which defined in [ResponseType] are `JSON`, `STREAM`, `PLAIN`.
@@ -282,9 +306,10 @@ The Options class describes the http request information and configuration. Each
 
   /// Custom field that you can retrieve it later in [Interceptor]、[Transformer] and the   [Response] object.
   Map<String, dynamic> extra;
+  
+  /// Common query parameters
+  Map<String, dynamic /*String|Iterable<String>*/ > queryParameters;  
 
-  /// Custom Cookies
-  Iterable<Cookie> cookies;
 }
 ```
 
@@ -299,7 +324,7 @@ The response for a request contains the following information.
   /// Response body. may have been transformed, please refer to [ResponseType].
   T data;
   /// Response headers.
-  HttpHeaders headers;
+  Headers headers;
   /// The corresponding request info.
   Options request;
   /// Http status code.
@@ -331,7 +356,7 @@ For each dio instance, We can add one or more interceptors, by which we can inte
 
 ```dart
 dio.interceptors.add(InterceptorsWrapper(
-    onRequest:(RequestOptions options){
+    onRequest:(RequestOptions options) async {
      // Do something before request is sent
      return options; //continue
      // If you want to resolve the request with some custom data，
@@ -339,11 +364,11 @@ dio.interceptors.add(InterceptorsWrapper(
      // If you want to reject the request with a error message,
      // you can return a `DioError` object or return `dio.reject(errMsg)`
     },
-    onResponse:(Response response) {
+    onResponse:(Response response) async {
      // Do something with response data
      return response; // continue
     },
-    onError: (DioError e) {
+    onError: (DioError e) async {
      // Do something with response error
      return  e;//continue
     }
@@ -351,34 +376,42 @@ dio.interceptors.add(InterceptorsWrapper(
 
 ```
 
+Simple interceptor example:
+
+```dart
+import 'package:dio/dio.dart';
+class CustomInterceptors extends InterceptorsWrapper {
+  @override
+  Future onRequest(RequestOptions options) {
+    print("REQUEST[${options?.method}] => PATH: ${options?.path}");
+    return super.onRequest(options);
+  }
+  @override
+  Future onResponse(Response response) {
+    print("RESPONSE[${response?.statusCode}] => PATH: ${response?.request?.path}");
+    return super.onResponse(response);
+  }
+  @override
+  Future onError(DioError err) {
+    print("ERROR[${err?.response?.statusCode}] => PATH: ${err?.request?.path}");
+    return super.onError(err);
+  }
+}
+```
+
+
 ### Resolve and reject the request
 
 In all interceptors, you can interfere with their execution flow. If you want to resolve the request/response with some custom data，you can return a `Response` object or return `dio.resolve(data)`.  If you want to reject the request/response with a error message, you can return a `DioError` object or return `dio.reject(errMsg)` .
 
 ```dart
 dio.interceptors.add(InterceptorsWrapper(
-  onRequest:(RequestOptions options){
+  onRequest:(RequestOptions options) {
    return dio.resolve("fake data")
   },
 ));
 Response response = await dio.get("/test");
 print(response.data);//"fake data"
-```
-
-### Supports Async tasks in Interceptors
-
-Interceptors not only support synchronous tasks, but also supports asynchronous tasks, for example:
-
-```dart
-dio.interceptors.add(InterceptorsWrapper(
-    onRequest:(Options options) async{
-        //...If no token, request token firstly.
-        Response response = await dio.get("/token");
-        //Set the token to headers
-        options.headers["token"] = response.data["data"]["token"];
-        return options; //continue
-    }
-));
 ```
 
 ### Lock/unlock the interceptors
@@ -421,7 +454,7 @@ Because of security reasons, we need all the requests to set up a csrfToken in t
 
 ```dart
 dio.interceptors.add(InterceptorsWrapper(
-    onRequest: (Options options) {
+    onRequest: (Options options) async {
         print('send request：path:${options.path}，baseURL:${options.baseUrl}');
         if (csrfToken == null) {
             print("no token，request token firstly...");
@@ -452,28 +485,13 @@ You can set  `LogInterceptor` to  print request/response log automaticlly, for e
 dio.interceptors.add(LogInterceptor(responseBody: false)); //开启请求日志
 ```
 
-### Cookie Manager
-
-CookieManager Interceptor  can help us manage the request/response cookies automaticly. CookieManager depends on `cookieJar`  package :
-
-> The dio cookie manage API is based on the withdrawn [cookie_jar](https://github.com/flutterchina/cookie_jar).
-
-You can create a `CookieJar` or `PersistCookieJar` to manage cookies automatically, and dio use the  `CookieJar` by default, which saves the cookies **in RAM**. If you want to persists cookies, you can use the `PersistCookieJar` class, the example codes as follows:
-
-```dart
-var dio = new Dio();
-dio.interceptors.add(CookieManager(CookieJar()))
-```
-
-`PersistCookieJar` is a cookie manager which implements the standard cookie policy declared in RFC. `PersistCookieJar` persists the cookies in files, so if the application exit, the cookies always exist unless call `delete` explicitly.
-
-> Note: In flutter, the path passed to `PersistCookieJar` must be valid(exists in phones and with write access). you can use [path_provider](https://pub.dartlang.org/packages/path_provider) package to get right path
-
-More details about [cookie_jar](https://github.com/flutterchina/cookie_jar)  see : https://github.com/flutterchina/cookie_jar .
-
 ### Custom Interceptor
 
-You can custom interceptor by extending the `Interceptor` class. There is an example that implementing a simple cache policy: custom cache interceptor.
+You can custom interceptor by extending the `Interceptor` class. There is an example that implementing a simple cache policy: [custom cache interceptor](https://github.com/flutterchina/dio/blob/master/example/custom_cache_interceptor.dart).
+
+## Cookie Manager
+
+[dio_cookie_manager](https://github.com/flutterchina/dio/tree/master/plugins/cookie_manager) package is a cookie manager for Dio.  
 
 ## Handling Errors
 
@@ -514,9 +532,6 @@ try {
   /// The original error/exception object; It's usually not null when `type`
   /// is DioErrorType.DEFAULT
   dynamic error;
-
-  /// Error stacktrace info
-  StackTrace stackTrace;
 }
 ```
 
@@ -550,29 +565,59 @@ By default, Dio serializes request data(except String type) to `JSON`. To send d
 
 ```dart
 //Instance level
-dio.options.contentType=ContentType.parse("application/x-www-form-urlencoded");
+dio.options.contentType= Headers.formUrlEncodedContentType;
 //or works once
-dio.post("/info",data:{"id":5}, options: new Options(contentType:ContentType.parse("application/x-www-form-urlencoded")));
+dio.post("/info", data:{"id":5}, 
+         options: Options(contentType:Headers.formUrlEncodedContentType ));
 ```
-
-There is an example [here](https://github.com/flutterchina/dio/blob/6de8289ea71b0b7803654caaa2e9d3d47a588ab7/example/options.dart#L41).
 
 ## Sending FormData
 
 You can also send FormData with Dio, which will send data in the `multipart/form-data`, and it supports uploading files.
 
 ```dart
-FormData formData = new FormData.from({
+FormData formData = FormData.fromMap({
     "name": "wendux",
     "age": 25,
-    "file": new UploadFileInfo(new File("./example/upload.txt"), "upload.txt")
+    "file": await MultipartFile.fromFile("./text.txt",filename: "upload.txt")
 });
 response = await dio.post("/info", data: formData);
 ```
 
-> Note: Just the post method suppots FormData.
-
 There is a complete example [here](https://github.com/flutterchina/dio/blob/master/example/formdata.dart).
+
+### Multiple files upload
+
+There are two ways to add multiple files to ` FormData`， the only difference is that upload keys are different for array types。
+
+```dart
+  FormData.fromMap({
+    "files": [
+      MultipartFile.fromFileSync("./example/upload.txt",
+          filename: "upload.txt"),
+      MultipartFile.fromFileSync("./example/upload.txt",
+          filename: "upload.txt"),
+    ]
+  });
+```
+
+The upload key eventually becomes "files[]"，This is because many back-end services add a middle bracket to key when they get an array of files. **If you don't want “[]”**，you should create FormData as follows（Don't use `FormData.fromMap`）:
+
+```dart
+  var formData = FormData();
+  formData.files.addAll([
+    MapEntry(
+      "files",
+       MultipartFile.fromFileSync("./example/upload.txt",
+          filename: "upload.txt"),
+    ),
+    MapEntry(
+      "files",
+      MultipartFile.fromFileSync("./example/upload.txt",
+          filename: "upload.txt"),
+    ),
+  ]);
+```
 
 ## Transformer
 
@@ -583,6 +628,7 @@ There is a complete example [here](https://github.com/flutterchina/dio/blob/mast
 If you use dio in flutter development, you'd better to decode json   in background with [compute] function.
 
 ```dart
+
 // Must be top-level function
 _parseAndDecode(String response) {
   return jsonDecode(response);
@@ -625,6 +671,9 @@ dio.httpClientAdapter = new DefaultHttpClientAdapter();
 `DefaultHttpClientAdapter` provide a callback to set proxy to `dart:io:HttpClient`, for example:
 
 ```dart
+import 'package:dio/dio.dart';
+import 'package:dio/adapter.dart';
+...
 (dio.httpClientAdapter as DefaultHttpClientAdapter).onHttpClientCreate = (client) {
     // config the http client
     client.findProxy = (uri) {
@@ -668,12 +717,16 @@ Another way is creating a `SecurityContext` when create the `HttpClient`:
 
 In this way,  the format of certificate must be PEM or PKCS12.
 
+## Http2 support
+
+[dio_http2_adapter](https://github.com/flutterchina/dio/tree/master/plugins/http2_adapter) package is a Dio HttpClientAdapter which support Http/2.0 .
+
 ## Cancellation
 
 You can cancel a request using a *cancel token*. One token can be shared with multiple requests. When a token's  `cancel` method invoked, all requests with this token will be cancelled.
 
 ```dart
-CancelToken token = new CancelToken();
+CancelToken token = CancelToken();
 dio.get(url1, cancelToken: token);
 dio.get(url2, cancelToken: token);
 
@@ -682,6 +735,29 @@ token.cancel("cancelled");
 ```
 
 There is a complete example [here](https://github.com/flutterchina/dio/blob/master/example/cancel_request.dart).
+
+## Extends Dio class
+
+`Dio` is a abstract class with factory constructor，so we don't extend `Dio` class directy. For this purpose,  we can extend `DioForNative` or `DioForBrowser` instead, for example:
+
+```dart
+import 'package:dio/dio.dart';
+import 'package:dio/native_imp.dart'; //If in browser, import 'package:dio/browser_imp.dart'
+
+class Http extends DioForNative {
+  Http([BaseOptions options]):super(options){
+    // do something
+  }
+}
+```
+
+We can also implement our Dio client:
+
+```dart
+class MyDio with DioMixin implements Dio{
+  // ...
+}
+```
 
 ## Copyright & License
 
